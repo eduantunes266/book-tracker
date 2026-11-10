@@ -10,6 +10,7 @@ build/
 .env.local
 .env.*.local
 CLAUDE.md
+credentials
 
 # Uploaded files (book covers)
 backend/uploads/*
