@@ -9,6 +9,7 @@ build/
 .env
 .env.local
 .env.*.local
+CLAUDE.md
 
 # Uploaded files (book covers)
 backend/uploads/*
