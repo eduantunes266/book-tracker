@@ -1,0 +1,32 @@
+# Runs the whole app: MongoDB + backend API + frontend (nginx)
+# Start:  docker compose up --build
+# Open:   http://localhost:3000
+services:
+  mongo:
+    image: mongo:8.0
+    volumes:
+      - mongo-data:/data/db # keeps the database between restarts
+
+  backend:
+    build: ./backend
+    # JWT_SECRET (and the other values) come from backend/.env ...
+    env_file: ./backend/.env
+    # ... but inside Docker we use the local mongo container instead of Atlas
+    environment:
+      PORT: 5000
+      MONGODB_URI: mongodb://mongo:27017/shelflog
+    volumes:
+      - uploads:/app/uploads # keeps the cover images between restarts
+    depends_on:
+      - mongo
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80" # the app is available at http://localhost:3000
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:
+  uploads:
