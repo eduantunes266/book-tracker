@@ -2,6 +2,7 @@ import "dotenv/config"; // loads variables from .env into process.env
 import express from "express";
 import connectDB from "./config/db";
 import authRoutes from "./routes/authRoutes";
+import bookRoutes from "./routes/bookRoutes";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -14,6 +15,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/books", bookRoutes);
 
 // Connect to the database first, then start listening for requests
 const startServer = async () => {
