@@ -27,10 +27,48 @@ ShelfLog is a web application that helps readers keep track of their personal re
 
 ```
 book-tracker/
-├── backend/     # Express REST API (TypeScript)
-├── frontend/    # React SPA (Vite + TypeScript)
+├── backend/             # Express REST API (TypeScript)
+├── frontend/            # React SPA (Vite + TypeScript)
+├── docker-compose.yml   # MongoDB + backend + frontend
 └── README.md
 ```
+
+## 🚀 Getting Started
+
+First create `backend/.env` from the example and fill in your own values:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+### Option 1 – Docker Compose (whole app)
+
+Requires Docker Desktop. Uses a local MongoDB container (the `MONGODB_URI` in `backend/.env` is ignored; `JWT_SECRET` is used).
+
+```bash
+docker compose up --build
+```
+
+Open **http://localhost:3000**. Data and cover images are kept in Docker volumes between restarts.
+Stop with `docker compose down` (add `-v` to also delete the data).
+
+### Option 2 – Development mode
+
+Requires Node.js and a MongoDB Atlas connection string in `backend/.env`.
+
+```bash
+# Terminal 1 – API on http://localhost:5000
+cd backend
+npm install
+npm run dev
+
+# Terminal 2 – React app on http://localhost:5173
+cd frontend
+npm install
+npm run dev
+```
+
+In development, Vite forwards `/api` and `/uploads` to the backend (see `frontend/vite.config.ts`).
 
 ## 📋 Project Management
 
@@ -44,4 +82,4 @@ book-tracker/
 
 ---
 
-*Installation instructions, API documentation and screenshots will be added in the next milestones.*
+*API documentation and screenshots will be added in the next milestones.*
