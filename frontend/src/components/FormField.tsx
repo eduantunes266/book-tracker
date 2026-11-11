@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes } from 'react'
+import { inputClass, labelClass } from './formStyles'
 
 interface FormFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   id: string
@@ -10,14 +11,10 @@ interface FormFieldProps extends InputHTMLAttributes<HTMLInputElement> {
 export default function FormField({ id, label, ...inputProps }: FormFieldProps) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-700">
+      <label htmlFor={id} className={labelClass}>
         {label}
       </label>
-      <input
-        id={id}
-        {...inputProps}
-        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
-      />
+      <input id={id} {...inputProps} className={inputClass} />
     </div>
   )
 }
