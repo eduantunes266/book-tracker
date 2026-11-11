@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { getBooks } from '../api/booksApi'
+import { Link } from 'react-router-dom'
+import { deleteBook, getBooks } from '../api/booksApi'
 import { getErrorMessage } from '../api/client'
 import BookCard from '../components/BookCard'
+import { inputClass, primaryButtonClass } from '../components/formStyles'
 import { STATUS_LABELS, type Book, type BookStatus } from '../types/book'
 
 export default function BooksPage() {
@@ -36,11 +38,28 @@ export default function BooksPage() {
     }
   }, [status, search])
 
+  const handleDelete = async (book: Book) => {
+    if (!window.confirm(`Delete "${book.title}"? This cannot be undone.`)) return
+
+    try {
+      await deleteBook(book._id)
+      // Remove it from the list without loading everything again
+      setBooks((current) => current.filter((b) => b._id !== book._id))
+    } catch (err) {
+      window.alert(getErrorMessage(err))
+    }
+  }
+
   const hasFilters = status !== '' || search.trim() !== ''
 
   return (
     <div>
-      <h1 className="text-2xl font-bold sm:text-3xl">My books</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold sm:text-3xl">My books</h1>
+        <Link to="/books/new" className={`${primaryButtonClass} shrink-0 text-sm sm:text-base`}>
+          + Add book
+        </Link>
+      </div>
 
       {/* Filters: stacked on mobile, side by side from "sm" up */}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -53,7 +72,7 @@ export default function BooksPage() {
           placeholder="Search by title or author..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none sm:flex-1"
+          className={`${inputClass} sm:flex-1`}
         />
 
         <label className="sr-only" htmlFor="status">
@@ -63,7 +82,7 @@ export default function BooksPage() {
           id="status"
           value={status}
           onChange={(e) => setStatus(e.target.value as BookStatus | '')}
-          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none sm:w-48"
+          className={`${inputClass} sm:w-48`}
         >
           <option value="">All statuses</option>
           {Object.entries(STATUS_LABELS).map(([value, label]) => (
@@ -94,7 +113,7 @@ export default function BooksPage() {
             {/* grid-cols-1 lets cards shrink to the screen width on mobile */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {books.map((book) => (
-                <BookCard key={book._id} book={book} />
+                <BookCard key={book._id} book={book} onDelete={handleDelete} />
               ))}
             </div>
           </>

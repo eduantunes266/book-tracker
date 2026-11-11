@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { getCoverUrl } from '../api/booksApi'
 import { STATUS_LABELS, type Book, type BookStatus } from '../types/book'
 
@@ -10,9 +11,10 @@ const STATUS_STYLES: Record<BookStatus, string> = {
 
 interface BookCardProps {
   book: Book
+  onDelete: (book: Book) => void // the page asks for confirmation and deletes
 }
 
-export default function BookCard({ book }: BookCardProps) {
+export default function BookCard({ book, onDelete }: BookCardProps) {
   const progress = Math.round((book.pagesRead / book.totalPages) * 100)
 
   return (
@@ -63,6 +65,22 @@ export default function BookCard({ book }: BookCardProps) {
             <span className="text-gray-300">{'★'.repeat(5 - book.rating)}</span>
           </p>
         ) : null}
+
+        <div className="mt-3 flex gap-2">
+          <Link
+            to={`/books/${book._id}/edit`}
+            className="rounded-md border border-gray-300 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100"
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            onClick={() => onDelete(book)}
+            className="rounded-md border border-red-200 px-3 py-1 text-sm font-medium text-red-600 hover:bg-red-50"
+          >
+            Delete
+          </button>
+        </div>
       </div>
     </article>
   )
