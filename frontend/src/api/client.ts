@@ -22,4 +22,20 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// Turns any request error into a message we can show to the user.
+// The backend always answers errors as { "message": "..." }.
+export const getErrorMessage = (error: unknown) => {
+  if (axios.isAxiosError(error)) {
+    const message = error.response?.data?.message
+    if (typeof message === 'string') return message
+
+    // No response, or 502/503/504 from the Vite proxy = backend is down
+    const status = error.response?.status
+    if (!error.response || status === 502 || status === 503 || status === 504) {
+      return 'Cannot reach the server. Is the backend running?'
+    }
+  }
+  return 'Something went wrong. Please try again.'
+}
+
 export default api
