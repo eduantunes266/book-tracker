@@ -22,6 +22,24 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// Automatic logout: if a request that carried a token gets 401, the token
+// has expired or is invalid. Remove it and go to the login page.
+// (A wrong password on login also returns 401, but that request has no token.)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (
+      axios.isAxiosError(error) &&
+      error.response?.status === 401 &&
+      error.config?.headers?.Authorization
+    ) {
+      removeToken()
+      window.location.assign('/login?expired=1') // full reload clears the page state
+    }
+    return Promise.reject(error)
+  },
+)
+
 // Turns any request error into a message we can show to the user.
 // The backend always answers errors as { "message": "..." }.
 export const getErrorMessage = (error: unknown) => {

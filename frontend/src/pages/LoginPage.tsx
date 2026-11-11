@@ -1,11 +1,14 @@
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { login } from '../api/authApi'
 import { getErrorMessage, getToken, saveToken } from '../api/client'
 import FormField from '../components/FormField'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  // /login?expired=1 is used by the automatic logout (see api/client.ts)
+  const [searchParams] = useSearchParams()
+  const sessionExpired = searchParams.get('expired') === '1'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -35,6 +38,12 @@ export default function LoginPage() {
     <div className="mx-auto max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
       <h1 className="text-2xl font-bold">Log in</h1>
       <p className="mt-1 text-sm text-gray-600">Welcome back to your reading list.</p>
+
+      {sessionExpired && !error && (
+        <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Your session has expired. Please log in again.
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <FormField
