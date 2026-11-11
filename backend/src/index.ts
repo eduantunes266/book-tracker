@@ -4,6 +4,7 @@ import connectDB from "./config/db";
 import authRoutes from "./routes/authRoutes";
 import bookRoutes from "./routes/bookRoutes";
 import { UPLOADS_DIR } from "./middleware/upload";
+import { notFound, errorHandler } from "./middleware/errorHandler";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,6 +21,10 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
+
+// These two must come after all routes
+app.use(notFound); // no route matched -> 404 JSON
+app.use(errorHandler); // unexpected errors -> JSON instead of an HTML page
 
 // Connect to the database first, then start listening for requests
 const startServer = async () => {
