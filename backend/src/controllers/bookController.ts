@@ -1,6 +1,7 @@
 import { Response } from "express";
 import Book, { BOOK_STATUSES } from "../models/Book";
 import { AuthRequest } from "../middleware/auth";
+import { deleteCoverFile } from "../middleware/upload";
 
 // Fields a client is allowed to send (userId and coverImage are set by the server)
 interface BookInput {
@@ -142,38 +143,53 @@ export const getBookById = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// POST /api/books
+// POST /api/books (JSON or multipart form with an optional "cover" image)
 export const createBook = async (req: AuthRequest, res: Response) => {
+  // File name of the uploaded cover (if any). If the request fails,
+  // we delete it so no unused files stay in the uploads folder.
+  const uploadedCover = req.file?.filename;
+
   try {
     const { data, error } = parseBookInput(req.body, false);
     if (error || !data) {
+      await deleteCoverFile(uploadedCover);
       return res.status(400).json({ message: error });
     }
 
     if ((data.pagesRead ?? 0) > data.totalPages!) {
+      await deleteCoverFile(uploadedCover);
       return res
         .status(400)
         .json({ message: "Pages read cannot be greater than total pages" });
     }
 
-    const book = await Book.create({ ...data, userId: req.userId });
+    const book = await Book.create({
+      ...data,
+      userId: req.userId,
+      coverImage: uploadedCover,
+    });
     return res.status(201).json(book);
   } catch (error) {
+    await deleteCoverFile(uploadedCover);
     console.error("Create book error:", error);
     return res.status(500).json({ message: "Server error" });
   }
 };
 
-// PUT /api/books/:id (only the fields sent are changed)
+// PUT /api/books/:id (only the fields sent are changed; a new "cover" replaces the old one)
 export const updateBook = async (req: AuthRequest, res: Response) => {
+  const uploadedCover = req.file?.filename;
+
   try {
     const { data, error } = parseBookInput(req.body, true);
     if (error || !data) {
+      await deleteCoverFile(uploadedCover);
       return res.status(400).json({ message: error });
     }
 
     const book = await Book.findOne({ _id: req.params.id, userId: req.userId });
     if (!book) {
+      await deleteCoverFile(uploadedCover);
       return res.status(404).json({ message: "Book not found" });
     }
 
@@ -181,15 +197,26 @@ export const updateBook = async (req: AuthRequest, res: Response) => {
     const totalPages = data.totalPages ?? book.totalPages;
     const pagesRead = data.pagesRead ?? book.pagesRead;
     if (pagesRead > totalPages) {
+      await deleteCoverFile(uploadedCover);
       return res
         .status(400)
         .json({ message: "Pages read cannot be greater than total pages" });
     }
 
+    const oldCover = book.coverImage;
     book.set(data);
+    if (uploadedCover) {
+      book.coverImage = uploadedCover;
+    }
     await book.save();
+
+    // Only delete the old cover after the new one was saved successfully
+    if (uploadedCover) {
+      await deleteCoverFile(oldCover);
+    }
     return res.status(200).json(book);
   } catch (error) {
+    await deleteCoverFile(uploadedCover);
     if (error instanceof Error && error.name === "CastError") {
       return res.status(404).json({ message: "Book not found" });
     }
@@ -208,6 +235,7 @@ export const deleteBook = async (req: AuthRequest, res: Response) => {
     if (!book) {
       return res.status(404).json({ message: "Book not found" });
     }
+    await deleteCoverFile(book.coverImage); // remove the cover image too
     return res.status(200).json({ message: "Book deleted" });
   } catch (error) {
     if (error instanceof Error && error.name === "CastError") {

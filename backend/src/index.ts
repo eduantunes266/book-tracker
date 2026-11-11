@@ -3,12 +3,16 @@ import express from "express";
 import connectDB from "./config/db";
 import authRoutes from "./routes/authRoutes";
 import bookRoutes from "./routes/bookRoutes";
+import { UPLOADS_DIR } from "./middleware/upload";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Parse JSON request bodies
 app.use(express.json());
+
+// Serve cover images, e.g. GET /uploads/<file name>
+app.use("/uploads", express.static(UPLOADS_DIR));
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
