@@ -1,0 +1,481 @@
+{
+  "info": {
+    "name": "ShelfLog API",
+    "description": "All endpoints of the ShelfLog backend.\n\nHow to use:\n1. Start the backend (`npm run dev` in `backend/`, API on http://localhost:5000).\n2. Run **Auth → Register** once (or change the `email`/`password` collection variables to an existing account).\n3. Run **Auth → Login**: its test script saves the JWT in the `token` collection variable.\n4. All **Books** requests send `Authorization: Bearer {{token}}`.\n5. **Create book (form-data)** saves the new book id in `bookId`, used by Get / Update / Delete.\n\nYou can also run the whole collection in order with the Collection Runner.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000", "type": "string" },
+    { "key": "email", "value": "reader@example.com", "type": "string" },
+    { "key": "password", "value": "secret123", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "bookId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 201 = new account, 409 = this email is already registered (then just use Login)",
+                  "pm.test('Status is 201 or 409', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo Reader\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Creates an account and returns `{ token, user }` (201).\nPassword must have at least 6 characters. Returns 409 if the email already exists."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// Save the JWT so every Books request can use {{token}}",
+                  "const data = pm.response.json();",
+                  "pm.test('Response has a token', () => {",
+                  "  pm.expect(data.token).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('token', data.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Returns `{ token, user }` (200). The test script stores the token in the `token` collection variable."
+          }
+        },
+        {
+          "name": "Login – wrong password (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test('Error message', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('Invalid email or password');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Invalid request example: wrong password → 401 `{ \"message\": \"Invalid email or password\" }`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Books",
+      "description": "All requests send `Authorization: Bearer {{token}}` (run Auth → Login first). Users only see their own books.",
+      "item": [
+        {
+          "name": "Create book (form-data)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "// Save the id so Get / Update / Delete use this book",
+                  "pm.collectionVariables.set('bookId', pm.response.json()._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "The Hobbit", "type": "text" },
+                { "key": "author", "value": "J.R.R. Tolkien", "type": "text" },
+                { "key": "totalPages", "value": "310", "type": "text" },
+                { "key": "pagesRead", "value": "120", "type": "text" },
+                { "key": "status", "value": "reading", "type": "text", "description": "read | reading | planned" },
+                { "key": "rating", "value": "5", "type": "text", "description": "1-5, optional" },
+                { "key": "notes", "value": "Great so far", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/books",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "books"]
+            },
+            "description": "Creates a book without a cover (201). The test script saves its `_id` in `bookId`."
+          }
+        },
+        {
+          "name": "Create book with cover (form-data)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "// Variables are not replaced inside scripts, so read baseUrl with pm.collectionVariables",
+                  "const book = pm.response.json();",
+                  "if (book.coverImage) {",
+                  "  console.log('Cover URL: ' + pm.collectionVariables.get('baseUrl') + '/uploads/' + book.coverImage);",
+                  "} else {",
+                  "  console.log('No cover saved - choose a file for the \"cover\" field in the Body tab.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Dune", "type": "text" },
+                { "key": "author", "value": "Frank Herbert", "type": "text" },
+                { "key": "totalPages", "value": "412", "type": "text" },
+                { "key": "status", "value": "planned", "type": "text" },
+                {
+                  "key": "cover",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select an image here (JPG, PNG, WEBP or GIF, max 5 MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/books",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "books"]
+            },
+            "description": "Creates a book with a cover image. In the Body tab, choose a file for the `cover` field first.\nThe image is then available at `{{baseUrl}}/uploads/<coverImage>`."
+          }
+        },
+        {
+          "name": "Create book – missing title (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Error message', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('Title is required');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "author", "value": "Unknown", "type": "text" },
+                { "key": "totalPages", "value": "100", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/books",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "books"]
+            },
+            "description": "Invalid request example: no title → 400 `{ \"message\": \"Title is required\" }`."
+          }
+        },
+        {
+          "name": "List books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is an array', () => {",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/books",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "books"]
+            },
+            "description": "All books of the logged-in user, newest first."
+          }
+        },
+        {
+          "name": "List books by status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Every book has status \"reading\"', () => {",
+                  "  pm.response.json().forEach((book) => pm.expect(book.status).to.eql('reading'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/books?status=reading",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "books"],
+              "query": [{ "key": "status", "value": "reading", "description": "read | reading | planned" }]
+            },
+            "description": "Filter by status (`read`, `reading` or `planned`). Another value → 400."
+          }
+        },
+        {
+          "name": "Search books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Finds The Hobbit', () => {",
+                  "  const titles = pm.response.json().map((book) => book.title);",
+                  "  pm.expect(titles).to.include('The Hobbit');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/books?search=tolkien",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "books"],
+              "query": [{ "key": "search", "value": "tolkien", "description": "Part of the title or author, case-insensitive" }]
+            },
+            "description": "Search in title OR author (case-insensitive, partial match). Can be combined with `status`."
+          }
+        },
+        {
+          "name": "Get book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('It is the saved book', () => {",
+                  "  pm.expect(pm.response.json()._id).to.eql(pm.collectionVariables.get('bookId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/books/{{bookId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "books", "{{bookId}}"]
+            },
+            "description": "One book by id. 404 if it does not exist or belongs to another user."
+          }
+        },
+        {
+          "name": "Update book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Fields were updated', () => {",
+                  "  const book = pm.response.json();",
+                  "  pm.expect(book.pagesRead).to.eql(310);",
+                  "  pm.expect(book.status).to.eql('read');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pagesRead\": 310,\n  \"status\": \"read\",\n  \"notes\": \"Finished it!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/books/{{bookId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "books", "{{bookId}}"]
+            },
+            "description": "Only the fields that are sent change. JSON or form-data (form-data with a `cover` file replaces the cover). `\"rating\": null` removes the rating."
+          }
+        },
+        {
+          "name": "Delete book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Confirmation message', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('Book deleted');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/books/{{bookId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "books", "{{bookId}}"]
+            },
+            "description": "Deletes the book and its cover image. Running it again → 404."
+          }
+        }
+      ]
+    }
+  ]
+}
