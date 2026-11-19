@@ -29,6 +29,7 @@ ShelfLog is a web application that helps readers keep track of their personal re
 book-tracker/
 ├── backend/             # Express REST API (TypeScript)
 ├── frontend/            # React SPA (Vite + TypeScript)
+├── docs/postman/        # Postman collection for the API
 ├── docs/screenshots/    # Screenshots used in this README
 ├── docker-compose.yml   # MongoDB + backend + frontend
 └── README.md
@@ -96,6 +97,8 @@ In development, Vite forwards `/api` and `/uploads` to the backend (see `fronten
 
 Base URL: `/api` (in development `http://localhost:5000/api`).
 Request and response bodies are JSON. Creating and updating books also accepts `multipart/form-data`, so a cover image can be sent in the same request.
+A ready-to-use **Postman collection** with all endpoints (plus examples of 400/401 errors) is in [`docs/postman/ShelfLog.postman_collection.json`](docs/postman/ShelfLog.postman_collection.json). Import it in Postman, run **Auth → Login** and the token is saved automatically for the Books requests.
+
 Every error response has the same shape:
 
 ```json
