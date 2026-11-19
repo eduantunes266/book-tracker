@@ -23,12 +23,71 @@ ShelfLog is a web application that helps readers keep track of their personal re
 | DevOps | Docker, Docker Compose, nginx |
 | Tools | Git, GitHub Projects, Postman, VS Code |
 
+## 🏗️ Architecture
+
+ShelfLog is a single-page application (SPA) with a REST API:
+
+- The **frontend** (React) runs in the browser. It shows the pages and calls the API with Axios, sending the JWT in the `Authorization` header.
+- The **backend** (Express) checks the JWT, validates the data, saves it in **MongoDB** with Mongoose and stores cover images on disk (`uploads/`) with Multer.
+- With Docker, **nginx** serves the built React files and forwards `/api` and `/uploads` to the backend, so the browser only talks to one address (no CORS needed). In development, the Vite dev server does the same job with its proxy.
+
+```mermaid
+flowchart LR
+    Browser["Browser<br/>(React SPA)"]
+    Nginx["nginx<br/>serves the React build<br/>port 3000"]
+    API["Express API<br/>JWT · validation · Multer<br/>port 5000"]
+    DB[("MongoDB")]
+    Files[("uploads/<br/>cover images")]
+
+    Browser -- "HTML, JS, CSS" --> Nginx
+    Browser -- "/api/* and /uploads/*" --> Nginx
+    Nginx -- "proxy /api, /uploads" --> API
+    API -- "Mongoose" --> DB
+    API -- "read / write files" --> Files
+```
+
+Request flow example – *add a book*: the form sends `POST /api/books` (multipart) → nginx forwards it to Express → the `auth` middleware checks the token → Multer saves the cover in `uploads/` → the controller validates the fields and saves the book with the user's id → `201` with the new book → the React app goes back to the list.
+
+## 🗃️ Data Model
+
+Each user owns many books (1–N). Every book query includes the logged-in user's id, so users only see their own books.
+
+```mermaid
+erDiagram
+    USER ||--o{ BOOK : owns
+
+    USER {
+        ObjectId _id PK
+        string name
+        string email UK "lowercase"
+        string passwordHash "bcrypt hash"
+        date createdAt
+        date updatedAt
+    }
+
+    BOOK {
+        ObjectId _id PK
+        ObjectId userId FK "owner"
+        string title
+        string author
+        number totalPages "at least 1"
+        number pagesRead "0 to totalPages, default 0"
+        string status "read, reading or planned"
+        number rating "1-5, optional"
+        string notes "default empty"
+        string coverImage "file name in uploads, optional"
+        date createdAt
+        date updatedAt
+    }
+```
+
 ## 📁 Project Structure
 
 ```
 book-tracker/
 ├── backend/             # Express REST API (TypeScript)
 ├── frontend/            # React SPA (Vite + TypeScript)
+├── docs/TESTING.md      # Test strategy and test cases
 ├── docs/postman/        # Postman collection for the API
 ├── docs/screenshots/    # Screenshots used in this README
 ├── docker-compose.yml   # MongoDB + backend + frontend
@@ -37,26 +96,58 @@ book-tracker/
 
 ## 🚀 Getting Started
 
-First create `backend/.env` from the example and fill in your own values:
+### 1. Clone the repository
 
 ```bash
+git clone https://github.com/eduantunes266/book-tracker.git
+cd book-tracker
+```
+
+### 2. Create `backend/.env` (required for both options)
+
+The backend reads its settings from `backend/.env`. This file is not in Git (it contains secrets), so create it from the example:
+
+```bash
+# macOS / Linux / Git Bash
 cp backend/.env.example backend/.env
 ```
 
+```powershell
+# Windows PowerShell
+Copy-Item backend/.env.example backend/.env
+```
+
+Then open `backend/.env` and set **`JWT_SECRET`** to a long random string (it signs the login tokens). You can generate one with:
+
+```bash
+# macOS / Linux / Git Bash
+openssl rand -hex 32
+```
+
+```powershell
+# Windows PowerShell
+$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); ($b | ForEach-Object { $_.ToString('x2') }) -join ''
+```
+
+For **Option 2** also set `MONGODB_URI` to your MongoDB Atlas connection string. With **Option 1** (Docker) `MONGODB_URI` is not used, so it can stay as in the example. All variables are explained in the **Configuration** section below.
+
+> If `backend/.env` is missing, `docker compose up` stops with *"env file ... backend/.env not found"*.
+
 ### Option 1 – Docker Compose (whole app)
 
-Requires Docker Desktop. Uses a local MongoDB container (the `MONGODB_URI` in `backend/.env` is ignored; `JWT_SECRET` is used).
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (running). Starts MongoDB, the backend and the frontend in containers:
 
 ```bash
 docker compose up --build
 ```
 
-Open **http://localhost:3000**. Data and cover images are kept in Docker volumes between restarts.
-Stop with `docker compose down` (add `-v` to also delete the data).
+The first build takes a few minutes. When the log shows `Server running on http://localhost:5000`, open **http://localhost:3000** and create an account.
+The Docker database is separate from MongoDB Atlas, so it starts empty. Data and cover images are kept in Docker volumes between restarts.
+Stop with `Ctrl+C` or `docker compose down` (add `-v` to also delete the data).
 
 ### Option 2 – Development mode
 
-Requires Node.js and a MongoDB Atlas connection string in `backend/.env`.
+Requires Node.js (v24) and a MongoDB Atlas connection string in `backend/.env`.
 
 ```bash
 # Terminal 1 – API on http://localhost:5000
@@ -70,7 +161,20 @@ npm install
 npm run dev
 ```
 
-In development, Vite forwards `/api` and `/uploads` to the backend (see `frontend/vite.config.ts`).
+Open **http://localhost:5173**. In development, Vite forwards `/api` and `/uploads` to the backend (see `frontend/vite.config.ts`).
+
+## ⚙️ Configuration
+
+| Variable | Where | Used for | Example |
+|---|---|---|---|
+| `PORT` | `backend/.env` | Port of the Express API | `5000` |
+| `MONGODB_URI` | `backend/.env` | MongoDB connection string (development). In Docker it is replaced by `mongodb://mongo:27017/shelflog` (see `docker-compose.yml`) | `mongodb+srv://<user>:<password>@<cluster>/shelflog` |
+| `JWT_SECRET` | `backend/.env` | **Required.** Secret used to sign and check the login tokens. Use a long random string and keep it private | `3f9a…` (64 random hex characters) |
+| `VITE_API_URL` | `frontend/.env` (optional) | Base URL of the API used by the React app. Leave it empty to use `/api` (Vite proxy in development, nginx in Docker). Only needed if the API runs on another address | empty, or `http://localhost:5000/api` |
+
+Examples of both files: `backend/.env.example` and `frontend/.env.example`. Never commit the real `.env` files.
+
+Fixed values (not configurable): token lifetime 1 day, cover images max 5 MB (JPG, PNG, WEBP, GIF), Docker app port 3000.
 
 ## 📸 Screenshots
 
@@ -173,6 +277,48 @@ curl -X POST http://localhost:5000/api/books \
 | `404` | Book not found (or it belongs to another user); unknown route |
 | `409` | Email is already registered |
 | `500` | Unexpected server error |
+
+### How the frontend uses the API
+
+All API calls are in `frontend/src/api/` (`authApi.ts`, `booksApi.ts`). An Axios interceptor adds `Authorization: Bearer <token>` to every request; if a request with a token gets `401`, the user is logged out automatically.
+
+| Page (route) | Endpoint(s) | When |
+|---|---|---|
+| Login (`/login`) | `POST /api/auth/login` | Submit the login form → token saved in `localStorage` |
+| Register (`/register`) | `POST /api/auth/register` | Submit the register form → token saved, user is logged in |
+| My books (`/`) | `GET /api/books?status=&search=` | On page load and whenever the status filter or the search text changes (300 ms after typing stops) |
+| My books (`/`) | `DELETE /api/books/:id` | "Delete" button on a card, after confirmation |
+| My books (`/`) | `GET /uploads/<coverImage>` | Cover image of each book card (`<img>`) |
+| Add book (`/books/new`) | `POST /api/books` (multipart) | Submit the form, with the optional cover image |
+| Edit book (`/books/:id/edit`) | `GET /api/books/:id` | Load the book to fill the form |
+| Edit book (`/books/:id/edit`) | `PUT /api/books/:id` (multipart) | "Save changes", with an optional new cover |
+
+## 🧪 Testing
+
+- Test strategy and the full list of test cases with results: [`docs/TESTING.md`](docs/TESTING.md)
+- Postman collection with all endpoints and test scripts: [`docs/postman/ShelfLog.postman_collection.json`](docs/postman/ShelfLog.postman_collection.json)
+- Screenshots of the API tests run in Postman (register, login, create, list, filter, update, delete, 400 error): [`docs/postman-api-tests.pdf`](docs/postman-api-tests.pdf)
+
+The API was tested with the Postman collection and extra error requests; the frontend with manual test cases in the browser (desktop and phone width).
+
+## ⚠️ Known Limitations
+
+- **No automated test suite** – tests are the Postman collection and manual test cases.
+- **No pagination** – all books of a user are loaded at once (fine for a personal list).
+- **Token in `localStorage`** – simple, but readable by JavaScript if the page had an XSS bug. There is no refresh token: after 1 day the user must log in again.
+- **Account management is minimal** – no password reset, no profile editing, no account deletion.
+- **Cover images** are stored on the server's disk (or a Docker volume) and are public to anyone who knows the file name. The file type is checked from the upload's MIME type, not from the file content.
+- **Separate databases** – development uses MongoDB Atlas, Docker uses its own MongoDB container, so data is not shared between them.
+- **No rate limiting** on login/register.
+
+## 🔮 Future Improvements
+
+- Automated tests: Jest + Supertest for the API, Vitest / Playwright for the frontend.
+- Pagination and sorting options (title, author, date added) in the book list.
+- Reading statistics (books read per year, pages read).
+- Resize and check cover images on upload; store them in cloud storage.
+- Safer sessions: httpOnly cookie or refresh tokens, rate limiting on login.
+- Password reset and profile page.
 
 ## 📋 Project Management
 
