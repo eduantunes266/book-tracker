@@ -176,7 +176,7 @@ curl -X POST http://localhost:5000/api/books \
 
 ## 📋 Project Management
 
-- **Project board:** [GitHub Project](LINK_TO_PROJECT_BOARD)
+- **Project board:** [GitHub Project](https://github.com/users/eduantunes266/projects/1)
 
 ## 🗺️ Roadmap
 
