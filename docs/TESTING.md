@@ -110,6 +110,6 @@ API results: 2026-11-19. Frontend results: 2026-11-11 (frontend and backend code
 
 | ID | Description | Steps | Expected result | Result |
 |---|---|---|---|---|
-| DOCK-01 | Fresh clone with Docker | Clone the repository, follow only the README "Getting Started" → Option 1 | Three containers run, app on http://localhost:3000 | ⏳ Pending |
+| DOCK-01 | Fresh clone with Docker | Clone the repository, follow only the README "Getting Started" → Option 1 | Three containers run, app on http://localhost:3000: register, add a book with cover, list, direct link to `/books/new` all work | ✅ Pass (2026-11-19) |
 | DOCK-02 | Data survives a restart | Add a book with cover → `docker compose down` → `docker compose up` | Book and cover still there | ✅ Pass (2026-11-11) |
 | DOCK-03 | Missing `backend/.env` | Run `docker compose up` without creating `backend/.env` | Compose stops with "env file ... backend/.env not found" | ✅ Pass (2026-11-19) |
