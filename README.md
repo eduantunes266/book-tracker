@@ -297,6 +297,7 @@ All API calls are in `frontend/src/api/` (`authApi.ts`, `booksApi.ts`). An Axios
 
 - Test strategy and the full list of test cases with results: [`docs/TESTING.md`](docs/TESTING.md)
 - Postman collection with all endpoints and test scripts: [`docs/postman/ShelfLog.postman_collection.json`](docs/postman/ShelfLog.postman_collection.json)
+- Screenshots of the API tests run in Postman (register, login, create, list, filter, update, delete, 400 error): [`docs/postman-api-tests.pdf`](docs/postman-api-tests.pdf)
 
 The API was tested with the Postman collection and extra error requests; the frontend with manual test cases in the browser (desktop and phone width).
 
